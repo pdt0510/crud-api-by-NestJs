@@ -1,0 +1,10 @@
+// 9ms29ss
+import { Module } from '@nestjs/common';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+
+@Module({
+  controllers: [AuthController], //14ms53ss
+  providers: [AuthService],
+})
+export class AuthModule {}
