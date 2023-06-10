@@ -1,9 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 import { PrismaConnectionService } from './prisma-connection.service';
 
-@Global() //45ms01ss
+@Global()
 @Module({
   providers: [PrismaConnectionService],
-  exports: [PrismaConnectionService], //43ms33ss
+  exports: [PrismaConnectionService],
 })
 export class PrismaConnectionModule {}

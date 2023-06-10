@@ -1,4 +1,3 @@
-# 26ms48ss
 version: '3.8'
 services:
   dev-db:

@@ -1,42 +1,52 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient, User, Bookmark } from '@prisma/client'; // 38ms14ss
 import { PrismaConnectionService } from '../prisma-connection/prisma-connection.service';
 import { authDto } from './dto';
 import * as argon2 from 'argon2';
+import { throws } from 'assert';
 
+//auth.service-2
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaConnectionService) {} // 42ms11ss
+  constructor(private prisma: PrismaConnectionService) {}
 
-  // 1h01ms40ss
-  signup_2 = async (dataDto: authDto) => {
+  signup = async (dataDto: authDto) => {
+    // 1h10ms12ss
     try {
-      const { email, password } = dataDto;
-      const hashedPassword = await argon2.hash(password);
-
+      const hashedPassword = await argon2.hash(dataDto.password);
       const createUser = await this.prisma.user.create({
         data: {
-          email: email,
+          email: dataDto.email,
           hash: hashedPassword,
         },
       });
-      /*
-      CRUD to real db; shape dto; transformer/validator class; whitelist api, hashed by argon package, 
 
-      
-      */
-
+      delete createUser.hash;
       return createUser;
-    } catch (err) {
-      console.log('signup_2 err ---', err);
+    } catch (error) {
+      throw new Error(`signup error --- ${error}`); //1h10ms12ss
     }
   };
 
-  signup = () => {
-    return { msg: 'I have sign-up' };
-  };
+  signin = async (dataDto: authDto) => {
+    // 1h13ms13ss
+    try {
+      const { email, password } = dataDto;
+      const user = await this.prisma.user.findUnique({
+        where: { email: email },
+      });
 
-  signin = () => {
-    return { msg: 'I have sign-in' };
+      if (user) {
+        const isMatchPassword = await argon2.verify(user.hash, password);
+
+        if (isMatchPassword) {
+          delete user.hash;
+          return user;
+        }
+      }
+
+      return 'Not found!';
+    } catch (error) {
+      throw new Error(`signin error --- ${error}`);
+    }
   };
 }
