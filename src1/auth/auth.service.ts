@@ -9,8 +9,8 @@ import { ConfigService } from '@nestjs/config';
 export class AuthService {
   constructor(
     private prisma: PrismaConnectionService,
-    private jwt: JwtService,
-    private config: ConfigService,
+    private jwt: JwtService, // 1h40ms38ss
+    private config: ConfigService, //1h45ms10ss
   ) {}
 
   signup = async (dataDto: authDto) => {
@@ -41,9 +41,7 @@ export class AuthService {
         const isMatchPassword = await argon2.verify(user.hash, password);
 
         if (isMatchPassword) {
-          delete user.hash;
-          const accessToken = await this.signToken(user.id, user.email);
-          return accessToken;
+          return this.signToken(user.id, user.email); //1h45ms10ss
         }
       }
 
@@ -53,6 +51,25 @@ export class AuthService {
     }
   };
 
+  //xx3
+  signToken3 = (userId: number, email: string): { accessToken: string } => {
+    const secret = this.config.get('JWT_SECRET');
+    const payload = {
+      sub: userId,
+      email,
+    };
+
+    const token = this.jwt.sign(payload, {
+      expiresIn: '15m',
+      secret: secret,
+    });
+
+    return {
+      accessToken: token,
+    };
+  };
+
+  // 1h47ms53ss, xx2
   signToken = async (
     userId: number,
     email: string,
@@ -69,5 +86,20 @@ export class AuthService {
     });
 
     return { accessToken: token };
+  };
+
+  // 1h42ms06ss, 1h45ms10ss
+  signToken1 = (userId: number, email: string): Promise<string> => {
+    const payload = {
+      sub: userId,
+      email,
+    };
+
+    const secret = this.config.get('JWT_SECRET'); //1h45ms10ss
+
+    return this.jwt.signAsync(payload, {
+      expiresIn: '15m',
+      secret: secret,
+    });
   };
 }
