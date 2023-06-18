@@ -23,8 +23,17 @@ export class AuthService {
         },
       });
 
-      delete createUser.hash;
-      return createUser;
+      if (createUser) {
+        delete createUser.hash;
+        const accessToken = await this.signToken(
+          createUser.id,
+          createUser.email,
+        );
+
+        return { createUser, accessToken };
+      }
+
+      return 'Not created';
     } catch (error) {
       throw new Error(`signup error --- ${error}`);
     }
@@ -42,8 +51,7 @@ export class AuthService {
 
         if (isMatchPassword) {
           delete user.hash;
-          const accessToken = await this.signToken(user.id, user.email);
-          return accessToken;
+          return user;
         }
       }
 
@@ -53,21 +61,18 @@ export class AuthService {
     }
   };
 
-  signToken = async (
-    userId: number,
-    email: string,
-  ): Promise<{ accessToken: string }> => {
+  signToken = async (userId: number, email: string): Promise<string> => {
     const secret = this.config.get('JWT_SECRET');
     const payload = {
       sub: userId,
       email,
     };
 
-    const token = await this.jwt.signAsync(payload, {
+    const accessToken = await this.jwt.signAsync(payload, {
       expiresIn: '15m',
       secret: secret,
     });
 
-    return { accessToken: token };
+    return accessToken;
   };
 }
