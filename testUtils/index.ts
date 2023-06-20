@@ -1,1 +1,1 @@
-export * from './authTests';
+export * from './testConstants';

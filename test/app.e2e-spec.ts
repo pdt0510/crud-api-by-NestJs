@@ -5,52 +5,43 @@ import { PrismaConnectionService } from './../src/prisma-connection/prisma-conne
 import * as pactum from 'pactum';
 import * as testUtils from '../testUtils/index';
 
-//test3
 describe('App e2e', () => {
-  const port = 3333;
   let app: INestApplication;
-  let prisma: PrismaConnectionService;
-  const urlBase = 'http://localhost:3333';
 
   beforeAll(async () => {
-    console.log('beforeAll ------');
+    const port = 3333;
+    const urlBase = `http://localhost:${port}`;
+    let prisma: PrismaConnectionService;
+
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-      }),
-    );
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
     await app.init();
-    // await app.listen(port); //2h53ms13ss, xx7
+    await app.listen(port); //unblock for 1st run, block for re-run
 
     prisma = app.get(PrismaConnectionService);
     await prisma.cleanDb();
-    console.log('cleanDb ------');
-    pactum.request.setBaseUrl(urlBase); // 2h55ms42ss
+    pactum.request.setBaseUrl(urlBase);
   });
 
   afterAll(async () => {
-    // await app.close(); //2h50ms40ss
-    console.log('afterAll ------');
+    await app.close(); //xx7
   });
 
-  // 2h50ms59ss
   describe('Auth', () => {
-    describe('Signup', () => {
+    describe('Signup ---', () => {
       const urlAppended = '/auth/signup';
 
-      //2h57ms18ss
       it('should throw if email empty', () => {
-        const data = { password: testUtils.dtoInfo.password };
+        const data = { password: testUtils.authDto.password };
         return pactum.spec().post(urlAppended).withBody(data).expectStatus(400);
       });
 
       it('should throw if email empty', () => {
-        const data = { email: testUtils.dtoInfo.email };
+        const data = { email: testUtils.authDto.email };
         return pactum.spec().post(urlAppended).withBody(data).expectStatus(400);
       });
 
@@ -58,24 +49,23 @@ describe('App e2e', () => {
         return pactum.spec().post(urlAppended).expectStatus(400);
       });
 
-      // 2h53ms13ss
       it('should sign-up', () => {
-        const url = 'http://localhost:3333/auth/signup';
-        const data = testUtils.dtoInfo;
+        const data = testUtils.authDto;
         return pactum
           .spec()
-          .post(urlAppended) //2h55ms42ss
+          .post(urlAppended)
           .withBody(data)
+          .stores('tai_Data', 'accessToken') //3h00ms22ss
           .expectStatus(201)
           .inspect();
       });
     });
 
-    describe('Signin', () => {
+    describe('Signin  ---', () => {
       const urlAppended = '/auth/signin';
 
       it('should sign-in', () => {
-        const data = testUtils.dtoInfo;
+        const data = testUtils.authDto;
         return pactum
           .spec()
           .post(urlAppended)
@@ -84,14 +74,13 @@ describe('App e2e', () => {
           .inspect();
       });
 
-      //2h57ms18ss
       it('should throw if email empty', () => {
-        const data = { password: testUtils.dtoInfo.password };
+        const data = { password: testUtils.authDto.password };
         return pactum.spec().post(urlAppended).withBody(data).expectStatus(400);
       });
 
       it('should throw if email empty', () => {
-        const data = { email: testUtils.dtoInfo.email };
+        const data = { email: testUtils.authDto.email };
         return pactum.spec().post(urlAppended).withBody(data).expectStatus(400);
       });
 
@@ -99,20 +88,168 @@ describe('App e2e', () => {
         return pactum.spec().post(urlAppended).expectStatus(400);
       });
 
-      it.todo('todo sign-in -----'); //2h50ms59ss
-    }); // 2h56ms42ss
+      it.todo('todo sign-in -----');
+    });
   });
 
   describe('User', () => {
-    describe('get me', () => {});
-    describe('edit user', () => {});
+    const headers = { Authorization: 'Bearer $S{tai_Data}' };
+    describe('get me ---', () => {
+      const urlAppended = '/users/me';
+      const data = testUtils.authDto;
+      it('should get me', () => {
+        return pactum
+          .spec()
+          .get(urlAppended)
+          .withBody(data)
+          .withHeaders(headers) //3h00ms22ss
+          .expectStatus(200)
+          .inspect();
+      });
+    });
+
+    describe('edit user ---', () => {
+      const urlAppended = '/users';
+      const data = testUtils.editUserDto;
+      const email = data.email;
+
+      it('should edit user', () => {
+        return pactum
+          .spec()
+          .patch(urlAppended) //3h09ms56ss
+          .withBody(data)
+          .withHeaders(headers)
+          .expectBodyContains(email) //3h11ms21ss
+          .expectStatus(200)
+          .inspect();
+      });
+    });
   });
 
+  // 3h23ms42ss
   describe('Bookmarks', () => {
-    describe('Create bookmark', () => {});
-    describe('Get bookmarks', () => {});
-    describe('Get bookmark by id', () => {});
-    describe('Edit bookmark', () => {});
-    describe('Del bookmark', () => {});
+    const headers = { Authorization: 'Bearer $S{tai_Data}' };
+    describe('Get empty bookmark ---', () => {
+      const urlAppended = '/bookmarks';
+      it('should get empty bookmark', () => {
+        return pactum
+          .spec()
+          .get(urlAppended) //3h09ms56ss
+          .withHeaders(headers)
+          .expectBody([]) //3h27ms25ss
+          .expectStatus(200)
+          .inspect();
+      });
+    });
+
+    describe('Create bookmark ---', () => {
+      const urlAppended = '/bookmarks';
+      const data = testUtils.createBookmark;
+      it('should create bookmark', () => {
+        return pactum
+          .spec()
+          .post(urlAppended)
+          .withHeaders(headers)
+          .withBody(data)
+          .expectStatus(201)
+          .inspect();
+      });
+    });
+
+    describe('Get bookmarks after creating ---', () => {
+      const urlAppended = '/bookmarks';
+      it('should get bookmarks after creating', () => {
+        return pactum
+          .spec()
+          .get(urlAppended)
+          .withHeaders(headers)
+          .expectStatus(200)
+          .expectJsonLength(1) //3h31ms29ss
+          .stores('bookmarkId', 'id')
+          .inspect();
+      });
+    });
+
+    describe('Get bookmark by Id ---', () => {
+      //way1
+      const bookmarkIdKey = 'anyName';
+      const bookmarkIdVal = '$S{bookmarkId}';
+      const urlAppended = `/bookmarks`; //xx10
+
+      it('should get bookmark by Id ', () => {
+        return pactum
+          .spec()
+          .get(urlAppended)
+          .withHeaders(headers)
+          .withPathParams(bookmarkIdKey, bookmarkIdVal) //xx10
+          .expectStatus(200)
+          .inspect();
+      });
+
+      //way 2
+      it('should get bookmark by Id 2', () => {
+        return pactum
+          .spec()
+          .get(urlAppended)
+          .withHeaders(headers)
+          .withQueryParams(bookmarkIdKey, bookmarkIdVal) //3h31ms52ss, xx10
+          .expectStatus(200)
+          .inspect();
+      });
+
+      //way 3, xx9
+      it('should get bookmark by Id 3', () => {
+        const urlAppended2 = `/bookmarks/${bookmarkIdVal}`;
+        return pactum
+          .spec()
+          .get(urlAppended2)
+          .withHeaders(headers)
+          .expectStatus(200)
+          .inspect();
+      });
+    });
+
+    // 3h34ms23ss
+    describe('Edit bookmark ---', () => {
+      const bookmarkIdVal = '$S{bookmarkId}';
+      const urlAppended = `/bookmarks/${bookmarkIdVal}`;
+      const data = {
+        title: `${testUtils.editBookmark.title} to $S{bookmarkId}`,
+        description: `${testUtils.editBookmark.description} to $S{bookmarkId}`,
+      };
+      it('should edit bookmark 3', () => {
+        return pactum
+          .spec()
+          .patch(urlAppended)
+          .withHeaders(headers)
+          .withBody(data)
+          .expectStatus(200)
+          .inspect();
+      });
+    });
+    describe('Del bookmark ---', () => {
+      const bookmarkIdVal = '$S{bookmarkId}';
+      const urlAppended = `/bookmarks/${bookmarkIdVal}`;
+      const data = {
+        title: `${testUtils.editBookmark.title} to $S{bookmarkId}`,
+        description: `${testUtils.editBookmark.description} to $S{bookmarkId}`,
+      };
+      it('should del bookmark by id', () => {
+        return pactum
+          .spec()
+          .delete(urlAppended)
+          .withHeaders(headers)
+          .withBody(data)
+          .expectStatus(200)
+          .inspect();
+      });
+    });
   });
 });
+
+/*
+git add .
+git commit -m"tests of CRUD; using pactumjs apis;"
+git push
+
+*/
